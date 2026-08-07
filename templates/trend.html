@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Adoption trend</title>
+  <style>
+    body { font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+           margin: 2rem; color: #1a1a1a; }
+    h1 { font-size: 1.4rem; }
+    nav { margin-bottom: 1rem; font-size: .9rem; }
+    form { margin-bottom: 1.2rem; }
+    label { font-size: .85rem; margin-right: .75rem; }
+    input, select { padding: .3rem; }
+    button { padding: .35rem .9rem; }
+    .muted { color: #777; font-size: .8rem; max-width: 860px; }
+    .hint { padding: 1rem; background: #f5f5f5; border-radius: 8px;
+            max-width: 860px; font-size: .9rem; }
+    .chartwrap { max-width: 900px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="/?from={{ from_date }}&to={{ to_date }}">&larr; Office coverage</a>
+    &nbsp;·&nbsp;
+    <a href="/desks?from={{ from_date }}&to={{ to_date }}">Desk adoption</a>
+  </nav>
+  <h1>Adoption trend &mdash; {{ (data.window if data else 7) }}-day rolling average</h1>
+
+  <form method="get">
+    <input type="hidden" name="run" value="1">
+    <label>From <input type="text" name="from" value="{{ from_date | ukdate }}"
+           placeholder="dd/mm/yyyy" pattern="\d{2}/\d{2}/\d{4}"
+           inputmode="numeric" size="10" title="Date as dd/mm/yyyy"></label>
+    <label>To <input type="text" name="to" value="{{ to_date | ukdate }}"
+           placeholder="dd/mm/yyyy" pattern="\d{2}/\d{2}/\d{4}"
+           inputmode="numeric" size="10" title="Date as dd/mm/yyyy"></label>
+    <label>Office
+      <select name="office">
+        <option value="" {% if not office %}selected{% endif %}>All</option>
+        {% for o in offices %}
+        <option value="{{ o }}" {% if office == o %}selected{% endif %}>{{ o|upper }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Top desks <input type="number" name="top_n" min="1" max="20"
+           value="{{ top_n }}" style="width:4rem"></label>
+    <label>Min articles <input type="number" name="min_total" min="1"
+           value="{{ min_total }}" style="width:4.5rem"></label>
+    <button type="submit">Run crawl</button>
+  </form>
+
+  {% if data is none %}
+  <div class="hint">
+    Choose a range and filters, then <b>Run crawl</b>. This scans the window's
+    content once (plus a 6-day lead-in for the rolling average) and plots the
+    global adoption rate alongside the highest-volume commissioning desks. It
+    does not run until you start it.
+  </div>
+  {% else %}
+  <p class="muted">
+    Each point is the trailing {{ data.window }}-day adoption rate (share of
+    content carrying any audience tag) on that date.
+    <b>Global</b> covers all content{% if data.office %} from the
+    {{ data.office|upper }} office{% endif %}; the other lines are the
+    {{ data.desks|length }} highest-volume desks (&ge; {{ data.min_total }}
+    articles in the window). {{ "{:,}".format(data.content_total) }} articles
+    crawled.
+  </p>
+  <div class="chartwrap"><canvas id="chart" height="170"></canvas></div>
+
+  <script id="trend-data" type="application/json">{{ data|tojson }}</script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    const D = JSON.parse(document.getElementById("trend-data").textContent);
+    const COLORS = ["#c2402a","#1a7f4b","#b8860b","#6a3d9a","#0b7285",
+                    "#a3125f","#495057","#1f6fb2","#8a5a00","#2f7d32",
+                    "#7b2d8b","#116d6d","#9c1f4a","#3a4a5a","#7a6000",
+                    "#0f5a2c","#5c2d7a","#0e5c5c","#7a1838","#2a3a48"];
+    const deskSets = D.desks.map((d, i) => ({
+      label: d.desk + " (" + d.total + ")",
+      data: d.series,
+      borderColor: COLORS[i % COLORS.length],
+      backgroundColor: COLORS[i % COLORS.length],
+      borderWidth: 1.5, pointRadius: 0, tension: 0.25, spanGaps: false,
+    }));
+    new Chart(document.getElementById("chart"), {
+      type: "line",
+      data: {
+        labels: D.days,
+        datasets: [{
+          label: "Global",
+          data: D.global,
+          borderColor: "#111", backgroundColor: "#111",
+          borderWidth: 3, pointRadius: 0, tension: 0.25, spanGaps: false,
+        }].concat(deskSets),
+      },
+      options: {
+        responsive: true, interaction: { mode: "index", intersect: false },
+        scales: {
+          y: { beginAtZero: true, title: { display: true, text: "% adoption" },
+               ticks: { callback: v => v + "%" } },
+          x: { ticks: { maxTicksLimit: 12, autoSkip: true } },
+        },
+        plugins: {
+          legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } },
+          tooltip: { callbacks: { label: c =>
+            c.dataset.label + ": " + (c.parsed.y == null ? "n/a" : c.parsed.y + "%") } },
+        },
+      },
+    });
+  </script>
+  {% endif %}
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Desk adoption</title>
+  <style>
+    body { font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+           margin: 2rem; color: #1a1a1a; }
+    h1 { font-size: 1.4rem; }
+    nav { margin-bottom: 1rem; font-size: .9rem; }
+    form { margin-bottom: 1.2rem; }
+    label { font-size: .85rem; margin-right: .75rem; }
+    input, select { padding: .3rem; }
+    button { padding: .35rem .9rem; }
+    table { border-collapse: collapse; width: 100%; max-width: 780px; }
+    th, td { padding: .45rem .7rem; text-align: right; border-bottom: 1px solid #ddd; }
+    th:first-child, td:first-child { text-align: left; }
+    thead th { border-bottom: 2px solid #052962; cursor: default;
+               font-size: .72rem; font-weight: 600; text-transform: uppercase;
+               letter-spacing: .02em; color: #555; }
+    .bar { display: inline-block; height: .7rem; background: #c2402a;
+           border-radius: 2px; vertical-align: middle; }
+    .bar.ok { background: #1a7f4b; }
+    .muted { color: #777; font-size: .8rem; max-width: 780px; }
+    .zero td { color: #c2402a; }
+    .hint { padding: 1rem; background: #f5f5f5; border-radius: 8px;
+            max-width: 780px; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="/?from={{ from_date }}&to={{ to_date }}">&larr; Office coverage</a>
+    &nbsp;·&nbsp;
+    <a href="/trend?from={{ from_date }}&to={{ to_date }}">Adoption trend</a>
+  </nav>
+  <h1>Commissioning-desk adoption</h1>
+
+  <form method="get">
+    <input type="hidden" name="run" value="1">
+    <label>From <input type="text" name="from" value="{{ from_date | ukdate }}"
+           placeholder="dd/mm/yyyy" pattern="\d{2}/\d{2}/\d{4}"
+           inputmode="numeric" size="10" title="Date as dd/mm/yyyy"></label>
+    <label>To <input type="text" name="to" value="{{ to_date | ukdate }}"
+           placeholder="dd/mm/yyyy" pattern="\d{2}/\d{2}/\d{4}"
+           inputmode="numeric" size="10" title="Date as dd/mm/yyyy"></label>
+    <label>Office
+      <select name="office">
+        <option value="" {% if not office %}selected{% endif %}>All</option>
+        {% for o in offices %}
+        <option value="{{ o }}" {% if office == o %}selected{% endif %}>{{ o|upper }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Min articles <input type="number" name="min_total" min="1"
+           value="{{ min_total }}" style="width:4rem"></label>
+    <button type="submit">Run crawl</button>
+  </form>
+
+  {% if data is none %}
+  <div class="hint">
+    Choose a date range and filters, then <b>Run crawl</b>. This scans the
+    window's content once (roughly 15&nbsp;seconds for a month) to tally each
+    commissioning desk's tag adoption — it does not run until you start it.
+  </div>
+  {% else %}
+  <p class="muted">
+    {{ data.desks|length }} desks with &ge; {{ data.min_total }} articles
+    {% if data.office %}(production office {{ data.office|upper }}){% endif %},
+    ranked by tag adoption — lowest first. Adoption = share of a desk's articles
+    carrying any audience tag. Articles can belong to more than one desk.
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Commissioning desk</th>
+        <th>Articles</th>
+        <th>Tagged</th>
+        <th>Untagged</th>
+        <th>Adoption</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in data.desks %}
+      <tr {% if d.adoption_pct == 0 %}class="zero"{% endif %}>
+        <td>{{ d.desk }}</td>
+        <td>{{ "{:,}".format(d.total) }}</td>
+        <td>{{ "{:,}".format(d.tagged) }}</td>
+        <td>{{ "{:,}".format(d.untagged) }}</td>
+        <td>{{ d.adoption_pct }}%</td>
+        <td style="width:120px;text-align:left">
+          <span class="bar {% if d.adoption_pct >= 50 %}ok{% endif %}"
+                style="width:{{ (d.adoption_pct * 1.1)|round }}px"></span>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</body>
+</html>

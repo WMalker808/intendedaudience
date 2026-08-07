@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tracking-tag coverage</title>
+  <style>
+    body { font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+           margin: 2rem; color: #1a1a1a; }
+    h1 { font-size: 1.4rem; }
+    .headline { font-size: 1.1rem; margin: 1rem 0 1.5rem;
+                padding: 1rem; background: #f2f6ff; border-radius: 8px; }
+    .headline strong { font-size: 1.6rem; color: #052962; }
+    form { margin-bottom: 1.5rem; }
+    label { font-size: .85rem; margin-right: .75rem; }
+    input[type=date] { padding: .3rem; }
+    button { padding: .35rem .9rem; }
+    table { border-collapse: collapse; width: 100%; max-width: 820px; }
+    th, td { padding: .5rem .7rem; text-align: right; border-bottom: 1px solid #ddd; }
+    th:first-child, td:first-child { text-align: left; }
+    thead th { border-bottom: 2px solid #052962; font-size: .72rem;
+               font-weight: 600; text-transform: uppercase;
+               letter-spacing: .02em; color: #555; }
+    tbody tr:last-child { font-weight: 600; background: #fafafa; }
+    .count { color: #777; font-size: .75rem; }
+    .muted { color: #777; font-size: .8rem; max-width: 820px; }
+    caption { text-align: left; font-size: .8rem; color: #555; margin-bottom: .4rem; }
+  </style>
+</head>
+<body>
+  <h1>Tracking-tag coverage by production office</h1>
+  <nav style="margin-bottom:1rem;font-size:.9rem">
+    <a href="/desks?from={{ data.from }}&to={{ data.to }}">Commissioning-desk adoption</a>
+    &nbsp;·&nbsp;
+    <a href="/trend?from={{ data.from }}&to={{ data.to }}">Adoption trend &rarr;</a>
+  </nav>
+
+  <form method="get">
+    <label>From <input type="text" name="from" value="{{ data.from | ukdate }}"
+           placeholder="dd/mm/yyyy" pattern="\d{2}/\d{2}/\d{4}"
+           inputmode="numeric" size="10" title="Date as dd/mm/yyyy"></label>
+    <label>To <input type="text" name="to" value="{{ data.to | ukdate }}"
+           placeholder="dd/mm/yyyy" pattern="\d{2}/\d{2}/\d{4}"
+           inputmode="numeric" size="10" title="Date as dd/mm/yyyy"></label>
+    <button type="submit">Update</button>
+  </form>
+
+  {% set tagged = data.overall.cats.for_region.count
+                  + data.overall.cats.for_global.count
+                  + data.overall.cats.just_global.count %}
+  <div class="headline">
+    <strong>{{ (100 * tagged / data.overall.total) | round(1) }}%</strong>
+    of all content ({{ "{:,}".format(tagged) }} of
+    {{ "{:,}".format(data.overall.total) }} articles) carries a tracking tag
+    in this window.
+  </div>
+
+  {% macro cell(c) %}
+    <td>{{ c.pct }}%<div class="count">{{ "{:,}".format(c.count) }}</div></td>
+  {% endmacro %}
+
+  <table>
+    <caption>The three tagged states are mutually exclusive; "Any tag" is their total.</caption>
+    <thead>
+      <tr>
+        <th>Production office</th>
+        <th>Total</th>
+        <th>Domestic for domestic</th>
+        <th>Domestic for global</th>
+        <th>Global</th>
+        <th>Any tag</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in data.offices %}
+      <tr>
+        <td>{{ row.office | upper }} <span class="count">({{ row.region }})</span></td>
+        <td>{{ "{:,}".format(row.total) }}</td>
+        {{ cell(row.cats.for_region) }}
+        {{ cell(row.cats.for_global) }}
+        {{ cell(row.cats.just_global) }}
+        {{ cell(row.cats.any) }}
+      </tr>
+      {% endfor %}
+      <tr>
+        <td>All content</td>
+        <td>{{ "{:,}".format(data.overall.total) }}</td>
+        {{ cell(data.overall.cats.for_region) }}
+        {{ cell(data.overall.cats.for_global) }}
+        {{ cell(data.overall.cats.just_global) }}
+        {{ cell(data.overall.cats.any) }}
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="muted">
+    <b>Domestic for domestic</b> = tagged for the office's own audience only
+    (e.g. UK for uk). <b>Domestic for global</b> = regional tag <i>and</i>
+    global. <b>Global</b> = global tag only, no regional. <b>Any tag</b> =
+    share carrying any tracking tag (the three preceding columns combined).
+    Percentages are share of that office's content; the small number under
+    each is the article count.
+  </p>
+</body>
+</html>

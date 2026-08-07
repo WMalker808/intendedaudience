@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: intendedaudience
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # The /desks and /trend crawls can take 15s+, so raise gunicorn's worker
+    # timeout well above its 30s default. One worker keeps the in-process TTL
+    # cache in capi.py effective (multiple workers would each cache separately).
+    startCommand: gunicorn app:app --workers 1 --timeout 120 --bind 0.0.0.0:$PORT
+    envVars:
+      - key: GUARDIAN_API_KEY
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.12.6"
