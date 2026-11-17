@@ -2,7 +2,7 @@ services:
   - type: web
     name: intendedaudience
     runtime: python
-    plan: free
+    plan: starter
     buildCommand: pip install -r requirements.txt
     # The /desks and /trend crawls can take 15s+, so raise gunicorn's worker
     # timeout well above its 30s default. One worker keeps the in-process TTL
